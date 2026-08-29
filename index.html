@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Living Abacus — Base 12</title>
+  <style>
+    :root {
+      --wood-dark: #5c3a1e;
+      --wood-mid: #7a4e28;
+      --wood-light: #a06a3a;
+      --brass: #c4a35a;
+      --brass-dark: #8a6d32;
+      --brass-shine: #e8d090;
+      --rod: #9aa3ad;
+      --rod-dark: #6d757e;
+      --paper: #f3e6c8;
+      --ink: #3a2a18;
+      --bar: #6b4220;
+      --yellow: #d4b03a;
+      --yellow-hi: #f0d56a;
+      --teal: #7d9b86;
+      --teal-hi: #a3bda8;
+      --orange: #c45c2c;
+      --orange-hi: #e07a48;
+      --blue: #2b5aa6;
+      --blue-hi: #4a7fd0;
+      --cream: #e6dcc4;
+      --cream-hi: #f7f1e2;
+      --rail: 18px;
+      --bar-h: 16px;
+      --bead-w: clamp(28px, 9vw, 42px);
+      --bead-h: clamp(18px, 5.4vw, 26px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: radial-gradient(ellipse at 50% 0%, #fff6e0 0%, var(--paper) 55%, #d9c49a 100%);
+      font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      color: var(--ink);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 10px 18px;
+      gap: 8px;
+    }
+
+    h1 {
+      font-size: clamp(1.3rem, 4vw, 1.8rem);
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      text-transform: uppercase;
+      text-shadow: 0 1px 0 #fff8e8;
+    }
+
+    .hint {
+      font-size: 0.88rem;
+      opacity: 0.78;
+      max-width: 460px;
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    .readouts {
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: end;
+    }
+
+    .readout {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      min-width: 8rem;
+    }
+
+    .readout .lbl {
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      opacity: 0.55;
+    }
+
+    .readout .num {
+      font-size: clamp(1.6rem, 6vw, 2.4rem);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      text-shadow: 0 1px 0 #fff8e8;
+    }
+
+    .formula {
+      font-size: 0.75rem;
+      opacity: 0.65;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    button.ctrl, .set-wrap input {
+      appearance: none;
+      border: 1px solid #8a6a3a;
+      background: linear-gradient(#f4e4b8, #d8bc7a);
+      color: var(--ink);
+      padding: 8px 14px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 0 #8a6a3a, inset 0 1px 0 #fff6d4;
+    }
+
+    button.ctrl { cursor: pointer; }
+    button.ctrl:hover { filter: brightness(1.06); }
+    button.ctrl:active { transform: translateY(1px); box-shadow: 0 1px 0 #8a6a3a; }
+
+    .set-wrap { display: flex; gap: 6px; align-items: center; }
+    .set-field {
+      width: 10.5rem;
+      min-height: 2.15rem;
+      text-align: right;
+      box-shadow: inset 0 1px 3px rgba(80,40,0,0.25);
+      background: #f7efd4;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+    }
+    .set-field.empty { color: #8a7350; letter-spacing: 0.02em; }
+    .set-field.open { outline: 2px solid #b8893a; }
+
+    .keypad {
+      display: none;
+      width: min(94vw, 420px);
+      padding: 10px;
+      border-radius: 12px;
+      background: linear-gradient(#f6ead0, #e6d3a8);
+      box-shadow:
+        0 0 0 2px #8a6a3a,
+        0 0 0 5px #c9b07a,
+        0 12px 28px rgba(40, 24, 8, 0.28);
+    }
+    .keypad.show { display: block; }
+    .keypad-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      opacity: 0.7;
+    }
+    .keypad-actions { display: flex; gap: 6px; }
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .key.tall { grid-row: span 2; font-size: 1.7rem; }
+    .key {
+      appearance: none;
+      border: 2px solid var(--brass-dark);
+      background: linear-gradient(#f3e2b6, #d4b56a);
+      color: var(--ink);
+      border-radius: 12px;
+      min-height: 48px;
+      font-family: inherit;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      box-shadow: 0 3px 0 var(--brass-dark), inset 0 1px 0 #fff6d4;
+    }
+    .key:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--brass-dark), inset 0 1px 0 #fff6d4;
+    }
+
+    .stage { width: min(94vw, 520px); }
+
+    .plate {
+      border-radius: 10px;
+      padding: 16px 14px 12px;
+      background: var(--paper);
+      box-shadow:
+        0 0 0 3px #2c2114,
+        0 0 0 6px #c9b07a,
+        0 18px 40px rgba(40, 24, 8, 0.28);
+    }
+
+    .abacus {
+      position: relative;
+      display: grid;
+      grid-template-rows: var(--rail) minmax(84px, 1fr) var(--bar-h) minmax(84px, 1fr) var(--rail);
+      grid-template-columns: var(--rail) repeat(5, 1fr) var(--rail);
+      min-height: 248px;
+      background: radial-gradient(ellipse at 50% 40%, #f7ead0 0%, #ead7b0 100%);
+      border-radius: 3px;
+    }
+
+    .h-rail {
+      background:
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.12) 0 1px, transparent 1px 8px),
+        linear-gradient(180deg, #b67a42, #7a4a24 55%, #5a3418);
+      box-shadow:
+        inset 0 2px 0 rgba(255,220,170,0.35),
+        inset 0 -3px 4px rgba(0,0,0,0.35);
+    }
+    .h-rail.top { grid-column: 1 / -1; grid-row: 1; }
+    .h-rail.bot { grid-column: 1 / -1; grid-row: 5; }
+
+    .bar {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      z-index: 6;
+      background:
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.16) 0 1px, transparent 1px 7px),
+        linear-gradient(180deg, #c4894a, var(--bar) 40%, #4a2c12);
+      box-shadow:
+        inset 0 2px 0 rgba(255,220,170,0.4),
+        inset 0 -2px 3px rgba(0,0,0,0.45),
+        0 2px 4px rgba(0,0,0,0.25);
+    }
+
+    .v-rail {
+      grid-row: 1 / -1;
+      background:
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.1) 0 1px, transparent 1px 9px),
+        linear-gradient(90deg, #6a3e1c, #8a5428 40%, #5c3516);
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.35);
+      z-index: 5;
+    }
+    .v-rail.left { grid-column: 1; }
+    .v-rail.right { grid-column: 7; }
+
+    .corner {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      z-index: 8;
+      background: linear-gradient(135deg, var(--brass-shine), var(--brass) 40%, var(--brass-dark));
+      box-shadow:
+        inset 2px 2px 0 rgba(255,240,200,0.45),
+        inset -2px -2px 3px rgba(0,0,0,0.35),
+        0 2px 3px rgba(0,0,0,0.3);
+    }
+    .corner .arm { display: none; }
+    .corner i {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #f2e2a8, #6a5018);
+      box-shadow: 0 0 0 1px #3a2a14;
+    }
+    .corner.tl { top: -2px; left: -2px; border-radius: 6px 2px 16px 2px; }
+    .corner.tr { top: -2px; right: -2px; border-radius: 2px 6px 2px 16px; }
+    .corner.bl { bottom: -2px; left: -2px; border-radius: 2px 16px 2px 6px; }
+    .corner.br { bottom: -2px; right: -2px; border-radius: 16px 2px 6px 2px; }
+    .corner.tl i:nth-of-type(1) { top: 7px; left: 7px; }
+    .corner.tl i:nth-of-type(2) { top: 7px; left: 22px; }
+    .corner.tl i:nth-of-type(3) { top: 22px; left: 7px; }
+    .corner.tr i:nth-of-type(1) { top: 7px; right: 7px; }
+    .corner.tr i:nth-of-type(2) { top: 7px; right: 22px; }
+    .corner.tr i:nth-of-type(3) { top: 22px; right: 7px; }
+    .corner.bl i:nth-of-type(1) { bottom: 7px; left: 7px; }
+    .corner.bl i:nth-of-type(2) { bottom: 7px; left: 22px; }
+    .corner.bl i:nth-of-type(3) { bottom: 22px; left: 7px; }
+    .corner.br i:nth-of-type(1) { bottom: 7px; right: 7px; }
+    .corner.br i:nth-of-type(2) { bottom: 7px; right: 22px; }
+    .corner.br i:nth-of-type(3) { bottom: 22px; right: 7px; }
+
+    .col {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      min-width: 0;
+    }
+    .col.heaven { grid-row: 2; }
+    .col.earth { grid-row: 4; }
+    .col.c0 { grid-column: 2; }
+    .col.c1 { grid-column: 3; }
+    .col.c2 { grid-column: 4; }
+    .col.c3 { grid-column: 5; }
+    .col.c4 { grid-column: 6; }
+
+    .rod {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #c5ccd3, var(--rod) 35%, var(--rod-dark) 80%, #b8c0c8);
+      box-shadow: 1px 0 2px rgba(0,0,0,0.35), inset 1px 0 0 rgba(255,255,255,0.4);
+      z-index: 1;
+    }
+
+    .stack {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .group-on, .group-off {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      flex: 0 0 auto;
+    }
+
+    /* Earth: unused beads sit on the bottom rail; counted beads rise to the bar. */
+    .col.earth .group-off { margin-top: auto; }
+    .col.earth .group-on { margin-top: 0; }
+
+    /* Heaven: unused beads hang from the top rail; counted beads drop to the bar. */
+    .col.heaven .group-off { margin-top: 0; margin-bottom: 0; }
+    .col.heaven .group-on { margin-top: auto; margin-bottom: 0; }
+
+    .bead {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      padding: 0;
+      width: var(--bead-w);
+      height: var(--bead-h);
+      flex: 0 0 var(--bead-h);
+      border-radius: 50%;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      position: relative;
+      box-shadow:
+        0 3px 5px rgba(0,0,0,0.28),
+        inset 0 -5px 7px rgba(0,0,0,0.22),
+        inset 0 5px 5px rgba(255,255,255,0.28);
+      transition: filter 0.15s ease, transform 0.16s ease;
+    }
+    .bead:hover { filter: brightness(1.08); }
+    .bead:active { transform: scale(0.96); }
+
+    .bead::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background-image: radial-gradient(rgba(0,0,0,0.18) 0.7px, transparent 0.8px);
+      background-size: 3.4px 3.4px;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .bead::before {
+      content: "";
+      position: absolute;
+      top: 16%;
+      left: 18%;
+      width: 38%;
+      height: 28%;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.38);
+      filter: blur(1px);
+      pointer-events: none;
+    }
+
+    .bead.yellow { background: radial-gradient(circle at 32% 28%, var(--yellow-hi), var(--yellow) 55%, #9a7a18); }
+    .bead.teal   { background: radial-gradient(circle at 32% 28%, var(--teal-hi), var(--teal) 55%, #4e6a58); }
+    .bead.orange { background: radial-gradient(circle at 32% 28%, var(--orange-hi), var(--orange) 55%, #8a3414); }
+    .bead.blue   { background: radial-gradient(circle at 32% 28%, var(--blue-hi), var(--blue) 55%, #16386e); }
+    .bead.cream  { background: radial-gradient(circle at 32% 28%, var(--cream-hi), var(--cream) 55%, #b8ad90); }
+
+    .places {
+      display: grid;
+      grid-template-columns: var(--rail) repeat(5, 1fr) var(--rail);
+      margin-top: 8px;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      opacity: 0.72;
+      text-align: center;
+      line-height: 1.25;
+    }
+    .places .pad { visibility: hidden; }
+    .places b { display: block; font-weight: 600; }
+    .places i { font-style: normal; opacity: 0.75; font-size: 0.9em; }
+
+    .legend {
+      margin-top: 8px;
+      font-size: 0.76rem;
+      text-align: center;
+      opacity: 0.7;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Living Abacus</h1>
+
+  <div class="readouts">
+    <div class="readout">
+      <div class="lbl">DOZENAL</div>
+      <div class="num" id="dozenal">00000</div>
+    </div>
+    <div class="readout">
+      <div class="lbl">DECIMAL</div>
+      <div class="num" id="decimal">0</div>
+    </div>
+  </div>
+  <div class="formula" id="formula"></div>
+
+  <div class="toolbar">
+    <button class="ctrl" type="button" id="clearBtn">Clear to 0</button>
+    <div class="set-wrap">
+      <button class="ctrl set-field empty" type="button" id="setField" aria-label="Dozenal input">dozenal</button>
+      <button class="ctrl" type="button" id="setBtn">Set</button>
+    </div>
+  </div>
+
+  <div class="keypad" id="keypad" aria-hidden="true">
+    <div class="keypad-head">
+      <span>DOZENAL KEYS</span>
+      <div class="keypad-actions">
+        <button class="ctrl" type="button" data-act="back">⌫</button>
+        <button class="ctrl" type="button" data-act="hide">Hide</button>
+      </div>
+    </div>
+    <div class="keypad-grid">
+      <button class="key" type="button" data-k="7">7</button>
+      <button class="key" type="button" data-k="8">8</button>
+      <button class="key" type="button" data-k="9">9</button>
+      <button class="key tall" type="button" data-k="+">+</button>
+      <button class="key" type="button" data-k="4">4</button>
+      <button class="key" type="button" data-k="5">5</button>
+      <button class="key" type="button" data-k="6">6</button>
+      <button class="key" type="button" data-k="1">1</button>
+      <button class="key" type="button" data-k="2">2</button>
+      <button class="key" type="button" data-k="3">3</button>
+      <button class="key tall" type="button" data-k="-">−</button>
+      <button class="key" type="button" data-k="A">A</button>
+      <button class="key" type="button" data-k="0">0</button>
+      <button class="key" type="button" data-k="B">B</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="plate">
+      <div class="abacus" id="abacus">
+        <div class="h-rail top"></div>
+        <div class="bar" title="Reckoning bar"></div>
+        <div class="h-rail bot"></div>
+        <div class="v-rail left"></div>
+        <div class="v-rail right"></div>
+        <div class="corner tl"><span class="arm h"></span><span class="arm v"></span><i></i><i></i><i></i></div>
+        <div class="corner tr"><span class="arm h"></span><span class="arm v"></span><i></i><i></i><i></i></div>
+        <div class="corner bl"><span class="arm h"></span><span class="arm v"></span><i></i><i></i><i></i></div>
+        <div class="corner br"><span class="arm h"></span><span class="arm v"></span><i></i><i></i><i></i></div>
+      </div>
+      <div class="places" id="places"></div>
+      <p class="legend">Heaven beads slide down to count (3 each). Earth beads slide up to count (1 each). Digits use A = ten and B = eleven.</p>
+    </div>
+  </div>
+
+  <script>
+    const COLORS = ["yellow", "teal", "orange", "blue", "cream"];
+    const HEAVEN_N = 3;
+    const EARTH_N = 2;
+    const HEAVEN_VAL = 3;
+    const EARTH_VAL = 1;
+    const BASE = 12;
+    const COLS = 5;
+    const PLACES = Array.from({ length: COLS }, (_, i) => BASE ** (COLS - 1 - i));
+    const DIGITS = "0123456789AB";
+
+    const columns = PLACES.map((place, i) => ({
+      place,
+      color: COLORS[i],
+      heaven: 0,
+      earth: 0
+    }));
+
+    const abacus = document.getElementById("abacus");
+
+    function beadButton(color, deck, k, colIndex) {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = `bead ${color}`;
+      el.dataset.k = String(k);
+      const worth = deck === "heaven" ? HEAVEN_VAL : EARTH_VAL;
+      el.setAttribute(
+        "aria-label",
+        `${deck} bead ${k} on rod ${colIndex + 1}, worth ${worth}`
+      );
+      el.addEventListener("click", () => tap(colIndex, deck, k));
+      return el;
+    }
+
+    function build() {
+      const places = document.getElementById("places");
+      places.innerHTML = `<span class="pad"></span>`;
+      columns.forEach((col, i) => {
+        const power = COLS - 1 - i;
+
+        const heaven = document.createElement("div");
+        heaven.className = `col heaven c${i}`;
+        heaven.innerHTML = `<div class="rod"></div><div class="stack"><div class="group-off"></div><div class="group-on"></div></div>`;
+        const hOff = heaven.querySelector(".group-off");
+        for (let k = 1; k <= HEAVEN_N; k++) {
+          hOff.appendChild(beadButton(col.color, "heaven", k, i));
+        }
+
+        const earth = document.createElement("div");
+        earth.className = `col earth c${i}`;
+        earth.innerHTML = `<div class="rod"></div><div class="stack"><div class="group-on"></div><div class="group-off"></div></div>`;
+        const eOff = earth.querySelector(".group-off");
+        for (let k = 1; k <= EARTH_N; k++) {
+          eOff.appendChild(beadButton(col.color, "earth", k, i));
+        }
+
+        abacus.appendChild(heaven);
+        abacus.appendChild(earth);
+        col.heavenEl = heaven;
+        col.earthEl = earth;
+
+        const cell = document.createElement("span");
+        cell.innerHTML = `<b>12<sup>${power}</sup></b><i>${col.place.toLocaleString("en-US")}</i>`;
+        places.appendChild(cell);
+      });
+      places.insertAdjacentHTML("beforeend", `<span class="pad"></span>`);
+    }
+
+    function tap(i, deck, k) {
+      const col = columns[i];
+      if (deck === "heaven") {
+        // k=1 is the top rail bead, k=3 is the bead nearest the bar.
+        // Down beads are always the lowest `heaven` beads.
+        const down = k > HEAVEN_N - col.heaven;
+        col.heaven = down ? HEAVEN_N - k : HEAVEN_N - k + 1;
+      } else {
+        col.earth = col.earth >= k ? k - 1 : k;
+      }
+      render();
+    }
+
+    function arrange(el, count, fromBottom) {
+      const on = el.querySelector(".group-on");
+      const off = el.querySelector(".group-off");
+      const beads = [...on.children, ...off.children];
+      beads.sort((a, b) => Number(a.dataset.k) - Number(b.dataset.k));
+      const total = beads.length;
+      beads.forEach((bead) => {
+        const k = Number(bead.dataset.k);
+        const active = fromBottom ? k > total - count : k <= count;
+        if (active) on.appendChild(bead);
+        else off.appendChild(bead);
+      });
+    }
+
+    function digitOf(col) {
+      return col.heaven * HEAVEN_VAL + col.earth * EARTH_VAL;
+    }
+
+    function decimalValue() {
+      return columns.reduce((s, c) => s + digitOf(c) * c.place, 0);
+    }
+
+    function toDozenal(n) {
+      if (n === 0) return "0";
+      let s = "";
+      let x = n;
+      while (x > 0) {
+        s = DIGITS[x % BASE] + s;
+        x = Math.floor(x / BASE);
+      }
+      return s;
+    }
+
+    function parseDozenalNum(raw) {
+      const t = String(raw).trim().toUpperCase();
+      if (!t || !/^[0-9AB]+$/.test(t)) return NaN;
+      return t.split("").reduce((s, ch) => s * BASE + DIGITS.indexOf(ch), 0);
+    }
+
+    function parseExpression(raw) {
+      const t = String(raw).trim().toUpperCase().replace(/−/g, "-").replace(/₁₂$/u, "");
+      if (!t) return 0;
+      const eq = t.match(/^([0-9AB]+)([+-])([0-9AB]+)$/);
+      if (eq) {
+        const a = parseDozenalNum(eq[1]);
+        const b = parseDozenalNum(eq[3]);
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+        return eq[2] === "+" ? a + b : a - b;
+      }
+      return parseDozenalNum(t);
+    }
+
+    function setNumber(n) {
+      const max = BASE ** COLS - 1;
+      n = Math.max(0, Math.min(max, Math.floor(n)));
+      let rest = n;
+      columns.forEach((c) => {
+        const d = Math.floor(rest / c.place);
+        rest -= d * c.place;
+        c.heaven = Math.min(HEAVEN_N, Math.floor(d / HEAVEN_VAL));
+        c.earth = Math.min(EARTH_N, d - c.heaven * HEAVEN_VAL);
+      });
+      render();
+    }
+
+    function clearAll() {
+      columns.forEach((c) => { c.heaven = 0; c.earth = 0; });
+      typed = "";
+      syncField();
+      hideKeypad();
+      render();
+    }
+
+    function render() {
+      columns.forEach((col) => {
+        arrange(col.heavenEl, col.heaven, true);
+        arrange(col.earthEl, col.earth, false);
+      });
+
+      const n = decimalValue();
+      const doz = toDozenal(n).padStart(COLS, "0");
+      document.getElementById("dozenal").textContent = doz + "₁₂";
+      document.getElementById("decimal").textContent = n.toLocaleString("en-US");
+      document.getElementById("formula").textContent = columns
+        .map((c) => `${DIGITS[digitOf(c)]}×${c.place.toLocaleString("en-US")}`)
+        .join("  +  ");
+    }
+
+    const field = document.getElementById("setField");
+    const keypad = document.getElementById("keypad");
+    let typed = "";
+
+    function syncField() {
+      if (!typed) {
+        field.textContent = "dozenal";
+        field.classList.add("empty");
+      } else {
+        field.textContent = typed;
+        field.classList.remove("empty");
+      }
+    }
+
+    function showKeypad() {
+      keypad.classList.add("show");
+      keypad.setAttribute("aria-hidden", "false");
+      field.classList.add("open");
+    }
+
+    function hideKeypad() {
+      keypad.classList.remove("show");
+      keypad.setAttribute("aria-hidden", "true");
+      field.classList.remove("open");
+    }
+
+    field.addEventListener("click", () => {
+      if (keypad.classList.contains("show")) hideKeypad();
+      else showKeypad();
+    });
+
+    keypad.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-k], [data-act]");
+      if (!btn) return;
+      if (btn.dataset.act === "back") {
+        typed = typed.slice(0, -1);
+        syncField();
+        return;
+      }
+      if (btn.dataset.act === "hide") {
+        hideKeypad();
+        return;
+      }
+      if (btn.dataset.k) {
+        const k = btn.dataset.k === "-" ? "-" : btn.dataset.k;
+        if (k === "+" || k === "-") {
+          if (!typed || /[+-]/.test(typed)) return;
+          typed += k;
+          syncField();
+          return;
+        }
+        const parts = typed.split(/[+-]/);
+        const last = parts[parts.length - 1] || "";
+        if (last.length >= COLS) return;
+        typed += k;
+        syncField();
+      }
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", clearAll);
+    document.getElementById("setBtn").addEventListener("click", () => {
+      const n = parseExpression(typed);
+      if (!Number.isFinite(n)) return;
+      setNumber(n);
+      typed = toDozenal(Math.max(0, Math.min(BASE ** COLS - 1, Math.floor(n))));
+      if (typed === "0") typed = "";
+      syncField();
+      hideKeypad();
+    });
+
+    build();
+    clearAll();
+  </script>
+</body>
+</html>
